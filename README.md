@@ -1,4 +1,4 @@
-https://github.com/Steventanardi/Stocker<div align="center">
+<div align="center">
   <img src="public/favicon.svg" alt="Stocker Logo" width="120" />
 
   # Stocker 📦💰
