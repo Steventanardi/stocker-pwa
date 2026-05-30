@@ -1,30 +1,29 @@
 import { useState } from 'react';
-import { PackageOpen, ArrowRight, Mail } from 'lucide-react';
+import { PackageOpen, ArrowRight, Lock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   
-  const { setGuestMode, signInWithEmail } = useAuthStore();
+  const { setGuestMode, signInWithPIN } = useAuthStore();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!pin) return;
 
     setIsSubmitting(true);
     setMessage('');
     
-    const { error } = await signInWithEmail(email);
+    const { error } = await signInWithPIN(pin);
     
     if (error) {
-      setMessage(`Error: ${error.message}`);
-    } else {
-      setMessage('Check your email for the magic link!');
+      setMessage(error.message);
     }
+    // If successful, the authStore will automatically redirect via onAuthStateChange
     setIsSubmitting(false);
   };
 
@@ -47,13 +46,13 @@ export default function Login() {
 
         <form onSubmit={handleSignIn} className="space-y-4 mb-8">
           <Input
-            label="Email Address"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            label="Personal PIN"
+            type="password"
+            placeholder="Enter your PIN"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
             required
-            icon={<Mail className="w-5 h-5 text-[var(--text-secondary)]" />}
+            icon={<Lock className="w-5 h-5 text-[var(--text-secondary)]" />}
           />
           <Button 
             type="submit" 
@@ -61,7 +60,7 @@ export default function Login() {
             className="w-full"
             loading={isSubmitting}
           >
-            Send Magic Link
+            Unlock Personal Data
           </Button>
           
           {message && (

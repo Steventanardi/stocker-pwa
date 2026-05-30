@@ -9,7 +9,7 @@ interface AuthState {
   
   // Actions
   setGuestMode: () => void;
-  signInWithEmail: (email: string) => Promise<{ error: any }>;
+  signInWithPIN: (pin: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   checkSession: () => Promise<void>;
 }
@@ -24,13 +24,37 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isGuest: true, user: null, isLoading: false });
   },
 
-  signInWithEmail: async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
+  signInWithPIN: async (pin: string) => {
+    if (!pin || pin.length < 4) {
+      return { error: new Error('PIN must be at least 4 characters') };
+    }
+
+    const email = 'admin@stocker.local';
+    const password = `${pin}-stocker-secure-pad`;
+
+    // 1. Try to sign in
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      password,
     });
+
+    if (error && error.message.includes('Invalid login credentials')) {
+      // 2. If invalid credentials, attempt to sign up (first time setup)
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+          // If already registered, it means they just typed the wrong PIN
+          return { error: new Error('Incorrect PIN. Please try again.') };
+        }
+        return { error: signUpError };
+      }
+      return { error: null };
+    }
+
     return { error };
   },
 
