@@ -1,5 +1,5 @@
 -- Create the items table
-CREATE TABLE items (
+CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   name TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE items (
 );
 
 -- Create inventory_categories table
-CREATE TABLE inventory_categories (
+CREATE TABLE IF NOT EXISTS inventory_categories (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   name TEXT NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE inventory_categories (
 );
 
 -- Create transaction_categories table
-CREATE TABLE transaction_categories (
+CREATE TABLE IF NOT EXISTS transaction_categories (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   name TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE transaction_categories (
 );
 
 -- Create the transactions table
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   type TEXT NOT NULL,
@@ -53,31 +53,35 @@ CREATE TABLE transactions (
   category TEXT NOT NULL,
   date TIMESTAMPTZ NOT NULL,
   description TEXT,
-  related_item_id TEXT REFERENCES items(id),
-  created_at TIMESTAMPTZ NOT NULL
+  related_item_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- Create the budgets table
-CREATE TABLE budgets (
+CREATE TABLE IF NOT EXISTS budgets (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   category TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   currency TEXT NOT NULL,
   period TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- Create the savings_goals table
-CREATE TABLE savings_goals (
+CREATE TABLE IF NOT EXISTS savings_goals (
   id TEXT PRIMARY KEY,
   user_id UUID REFERENCES auth.users NOT NULL,
   name TEXT NOT NULL,
   target_amount NUMERIC NOT NULL,
-  current_amount NUMERIC NOT NULL,
+  current_amount NUMERIC DEFAULT 0,
   currency TEXT NOT NULL,
   target_date TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- Enable Row Level Security (RLS)
@@ -88,7 +92,38 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE savings_goals ENABLE ROW LEVEL SECURITY;
 
--- Create Policies so users can only access their own data
+-- Drop existing policies first to prevent conflicts when rerunning
+DROP POLICY IF EXISTS "Users can view their own items" ON items;
+DROP POLICY IF EXISTS "Users can insert their own items" ON items;
+DROP POLICY IF EXISTS "Users can update their own items" ON items;
+DROP POLICY IF EXISTS "Users can delete their own items" ON items;
+
+DROP POLICY IF EXISTS "Users can view their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can insert their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can update their own transactions" ON transactions;
+DROP POLICY IF EXISTS "Users can delete their own transactions" ON transactions;
+
+DROP POLICY IF EXISTS "Users can view their own budgets" ON budgets;
+DROP POLICY IF EXISTS "Users can insert their own budgets" ON budgets;
+DROP POLICY IF EXISTS "Users can update their own budgets" ON budgets;
+DROP POLICY IF EXISTS "Users can delete their own budgets" ON budgets;
+
+DROP POLICY IF EXISTS "Users can view their own savings_goals" ON savings_goals;
+DROP POLICY IF EXISTS "Users can insert their own savings_goals" ON savings_goals;
+DROP POLICY IF EXISTS "Users can update their own savings_goals" ON savings_goals;
+DROP POLICY IF EXISTS "Users can delete their own savings_goals" ON savings_goals;
+
+DROP POLICY IF EXISTS "Users can view their own inv categories" ON inventory_categories;
+DROP POLICY IF EXISTS "Users can insert their own inv categories" ON inventory_categories;
+DROP POLICY IF EXISTS "Users can update their own inv categories" ON inventory_categories;
+DROP POLICY IF EXISTS "Users can delete their own inv categories" ON inventory_categories;
+
+DROP POLICY IF EXISTS "Users can view their own txn categories" ON transaction_categories;
+DROP POLICY IF EXISTS "Users can insert their own txn categories" ON transaction_categories;
+DROP POLICY IF EXISTS "Users can update their own txn categories" ON transaction_categories;
+DROP POLICY IF EXISTS "Users can delete their own txn categories" ON transaction_categories;
+
+-- Create policies for each table
 CREATE POLICY "Users can view their own items" ON items FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own items" ON items FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update their own items" ON items FOR UPDATE USING (auth.uid() = user_id);
