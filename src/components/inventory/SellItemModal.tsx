@@ -48,6 +48,7 @@ export default function SellItemModal({ isOpen, onClose, itemId }: SellItemModal
         notes: `Sold ${quantityToSell}x ${item.name}`,
         date: new Date(),
         currency: item.currency || defaultCurrency,
+        paymentMethod: 'cash',
       });
 
       onClose();
