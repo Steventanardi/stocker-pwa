@@ -50,7 +50,10 @@ export default function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4" 
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-[var(--bg-overlay)] animate-[fade-in_0.15s_ease-out]"

@@ -15,7 +15,7 @@ export default function AppLayout() {
       <Sidebar />
 
       {/* Main content */}
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-7xl mx-auto pb-24 lg:pb-8">
           <Outlet />
         </div>
