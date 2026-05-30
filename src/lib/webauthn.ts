@@ -7,9 +7,10 @@
  * we consider the user physically verified by the OS biometrics.
  */
 
-// Helper to convert string to Uint8Array buffer
 function bufferDecode(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "===".slice((base64.length + 3) % 4);
+  return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
 }
 
 // Helper to convert Uint8Array buffer to base64 string
