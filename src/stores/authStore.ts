@@ -7,9 +7,15 @@ interface AuthState {
   isGuest: boolean;
   isLoading: boolean;
   
+  // Biometrics
+  biometricCredentialId: string | null;
+  savedPin: string | null;
+  
   // Actions
   setGuestMode: () => void;
   signInWithPIN: (pin: string) => Promise<{ error: any }>;
+  enableBiometrics: (credentialId: string, pin: string) => void;
+  disableBiometrics: () => void;
   signOut: () => Promise<void>;
   checkSession: () => Promise<void>;
 }
@@ -18,6 +24,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   isGuest: localStorage.getItem('stocker_guest_mode') === 'true',
   isLoading: true,
+  biometricCredentialId: localStorage.getItem('stocker_biometric_id'),
+  savedPin: localStorage.getItem('stocker_saved_pin'),
 
   setGuestMode: () => {
     localStorage.setItem('stocker_guest_mode', 'true');
@@ -56,6 +64,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     return { error };
+  },
+
+  enableBiometrics: (credentialId: string, pin: string) => {
+    localStorage.setItem('stocker_biometric_id', credentialId);
+    localStorage.setItem('stocker_saved_pin', pin);
+    set({ biometricCredentialId: credentialId, savedPin: pin });
+  },
+
+  disableBiometrics: () => {
+    localStorage.removeItem('stocker_biometric_id');
+    localStorage.removeItem('stocker_saved_pin');
+    set({ biometricCredentialId: null, savedPin: null });
   },
 
   signOut: async () => {

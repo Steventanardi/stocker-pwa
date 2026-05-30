@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, Database, Palette, DollarSign, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Database, Palette, DollarSign, Trash2, Fingerprint, LogOut } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
@@ -10,6 +10,8 @@ import { exportInventoryToCsv, exportTransactionsToCsv } from '@/utils/exportCsv
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useMoneyStore } from '@/stores/moneyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAuthStore } from '@/stores/authStore';
+import { isWebAuthnSupported, registerBiometrics } from '@/lib/webauthn';
 
 /* ============================================
    Settings Page
@@ -19,10 +21,17 @@ export default function Settings() {
   const { theme, setTheme, currency, setCurrency } = useSettingsStore();
   const { loadItems } = useInventoryStore();
   const { loadTransactions } = useMoneyStore();
+  const { isGuest, biometricCredentialId, enableBiometrics, disableBiometrics, signOut } = useAuthStore();
   
   const [isClearDataOpen, setIsClearDataOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [biometricsSupported, setBiometricsSupported] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  useEffect(() => {
+    isWebAuthnSupported().then(setBiometricsSupported);
+  }, []);
 
   const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
     setTheme(newTheme);
@@ -66,6 +75,26 @@ export default function Settings() {
       alert('Failed to clear data');
       setIsClearing(false);
       setIsClearDataOpen(false);
+    }
+  };
+
+  const handleToggleBiometrics = async () => {
+    if (biometricCredentialId) {
+      disableBiometrics();
+    } else {
+      const pin = window.prompt("Enter your PIN to save for FaceID unlock:");
+      if (!pin) return;
+      
+      setIsRegistering(true);
+      try {
+        const credId = await registerBiometrics();
+        enableBiometrics(credId, pin);
+        alert("FaceID successfully linked!");
+      } catch (error: any) {
+        alert(error.message || "Failed to link FaceID");
+      } finally {
+        setIsRegistering(false);
+      }
     }
   };
 
@@ -123,6 +152,42 @@ export default function Settings() {
             />
           </div>
         </section>
+
+        {/* Security / Account section */}
+        {!isGuest && (
+          <section className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-default)] overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--border-default)] flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600">
+                <Fingerprint className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Security</h2>
+            </div>
+            <div className="p-4 sm:p-6 space-y-6">
+              {biometricsSupported && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-medium text-[var(--text-primary)] mb-1">FaceID / TouchID</h3>
+                    <p className="text-xs text-[var(--text-secondary)]">Unlock the app instantly without your PIN.</p>
+                  </div>
+                  <Button 
+                    variant={biometricCredentialId ? "danger" : "primary"} 
+                    onClick={handleToggleBiometrics}
+                    loading={isRegistering}
+                  >
+                    {biometricCredentialId ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+              )}
+
+              <div className={`pt-4 ${biometricsSupported ? 'border-t border-[var(--border-default)]' : ''}`}>
+                <Button variant="secondary" onClick={signOut} className="w-full justify-center">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Lock / Sign Out
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Data section */}
         <section className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-default)] overflow-hidden shadow-sm">
