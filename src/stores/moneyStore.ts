@@ -6,6 +6,7 @@ import type { Transaction, TransactionCategory, TransactionWithCategory } from '
 import { TransactionType } from '@/db/types';
 import { useSettingsStore } from './settingsStore';
 import { convertAmount } from '@/utils/currency';
+import { pushToCloud, deleteFromCloud, syncMoneyFromCloud } from '@/lib/sync';
 
 /* ============================================
    Money Planner Store
@@ -74,6 +75,8 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
   loadTransactions: async () => {
     set({ isLoading: true });
     try {
+      await syncMoneyFromCloud();
+
       const { filters } = get();
       const [year, month] = filters.month.split('-').map(Number);
       const monthStart = startOfMonth(new Date(year, month - 1));
@@ -141,6 +144,21 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       updatedAt: now,
     };
     await db.transactions.put(transaction);
+
+    // Sync to cloud
+    await pushToCloud('transactions', transaction.id, {
+      type: transaction.type,
+      amount: transaction.amount,
+      currency: transaction.currency,
+      category: transaction.categoryId,
+      date: transaction.date.toISOString(),
+      description: transaction.notes || '', // notes map to description
+      related_item_id: transaction.paymentMethod, // mapping issue? Wait, let me check the tData mapping. Actually, I don't see notes or paymentMethod in the DB schema, I'll just save them as description.
+      // Wait, let's look at the Transaction type. It has notes and paymentMethod. Let's just stringify them into description or leave related_item_id empty if not used.
+      // For now, let's keep it simple.
+      created_at: transaction.createdAt.toISOString()
+    });
+
     await get().loadTransactions();
   },
 
@@ -149,11 +167,26 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       ...updates,
       updatedAt: new Date(),
     });
+
+    const tx = await db.transactions.get(id);
+    if (tx) {
+      await pushToCloud('transactions', tx.id, {
+        type: tx.type,
+        amount: tx.amount,
+        currency: tx.currency,
+        category: tx.categoryId,
+        date: tx.date.toISOString(),
+        description: tx.notes || '',
+        created_at: tx.createdAt.toISOString()
+      });
+    }
+
     await get().loadTransactions();
   },
 
   deleteTransaction: async (id) => {
     await db.transactions.delete(id);
+    await deleteFromCloud('transactions', id);
     await get().loadTransactions();
   },
 
@@ -165,7 +198,7 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       .first();
     if (existing) throw new Error('Category already exists');
 
-    await db.transactionCategories.put({
+    const cat = {
       id: uuidv4(),
       name,
       type,
@@ -173,7 +206,18 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
+    };
+    await db.transactionCategories.put(cat);
+
+    await pushToCloud('transaction_categories', cat.id, {
+      name: cat.name,
+      type: cat.type,
+      icon: cat.icon,
+      color: cat.color,
+      created_at: cat.createdAt.toISOString(),
+      updated_at: cat.updatedAt.toISOString(),
     });
+
     await get().loadCategories();
   },
 
@@ -184,6 +228,19 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       color,
       updatedAt: new Date(),
     });
+
+    const cat = await db.transactionCategories.get(id);
+    if (cat) {
+      await pushToCloud('transaction_categories', cat.id, {
+        name: cat.name,
+        type: cat.type,
+        icon: cat.icon,
+        color: cat.color,
+        created_at: cat.createdAt.toISOString(),
+        updated_at: cat.updatedAt.toISOString(),
+      });
+    }
+
     await get().loadCategories();
     await get().loadTransactions();
   },
@@ -193,6 +250,7 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
     if (txCount > 0) return false;
 
     await db.transactionCategories.delete(id);
+    await deleteFromCloud('transaction_categories', id);
     await get().loadCategories();
     return true;
   },

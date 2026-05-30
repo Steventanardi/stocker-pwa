@@ -6,6 +6,7 @@ import type { BudgetWithUsage } from '@/db/types';
 import { BudgetStatus, TransactionType } from '@/db/types';
 import { useSettingsStore } from './settingsStore';
 import { convertAmount } from '@/utils/currency';
+import { pushToCloud, deleteFromCloud } from '@/lib/sync';
 
 /* ============================================
    Budget Store
@@ -126,7 +127,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     if (existing) throw new Error('Budget already exists for this category and month');
 
     const now = new Date();
-    await db.budgets.put({
+    const budget = {
       id: uuidv4(),
       month: targetMonth,
       categoryId,
@@ -134,7 +135,18 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       currency,
       createdAt: now,
       updatedAt: now,
+    };
+    await db.budgets.put(budget);
+
+    // Sync to cloud
+    await pushToCloud('budgets', budget.id, {
+      category: budget.categoryId,
+      amount: budget.limitAmount,
+      currency: budget.currency,
+      period: budget.month,
+      created_at: budget.createdAt.toISOString()
     });
+
     await get().loadBudgets();
   },
 
@@ -144,11 +156,24 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       currency,
       updatedAt: new Date(),
     });
+
+    const budget = await db.budgets.get(id);
+    if (budget) {
+      await pushToCloud('budgets', budget.id, {
+        category: budget.categoryId,
+        amount: budget.limitAmount,
+        currency: budget.currency,
+        period: budget.month,
+        created_at: budget.createdAt.toISOString()
+      });
+    }
+
     await get().loadBudgets();
   },
 
   deleteBudget: async (id) => {
     await db.budgets.delete(id);
+    await deleteFromCloud('budgets', id);
     await get().loadBudgets();
   },
 

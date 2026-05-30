@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/db/database';
 import type { InventoryItem, InventoryCategory, InventoryItemWithCategory } from '@/db/types';
 import { StockStatus } from '@/db/types';
+import { pushToCloud, deleteFromCloud, syncInventoryFromCloud } from '@/lib/sync';
 
 /* ============================================
    Inventory Store
@@ -63,6 +64,8 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
   loadItems: async () => {
     set({ isLoading: true });
     try {
+      await syncInventoryFromCloud();
+      
       const [rawItems, categories] = await Promise.all([
         db.inventoryItems.toArray(),
         db.inventoryCategories.toArray(),
@@ -97,19 +100,60 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       updatedAt: now,
     };
     await db.inventoryItems.put(item);
+    
+    // Sync to cloud
+    await pushToCloud('items', item.id, {
+      name: item.name,
+      barcode: item.barcode,
+      category: item.categoryId,
+      condition: item.condition,
+      quantity: item.quantity,
+      unit: item.unit,
+      currency: item.currency,
+      purchase_price: item.purchasePrice,
+      selling_price: item.sellingPrice,
+      min_quantity: item.minimumStock,
+      notes: item.notes,
+      created_at: item.createdAt.toISOString(),
+      updated_at: item.updatedAt.toISOString(),
+    });
+
     await get().loadItems();
   },
 
   updateItem: async (id, updates) => {
+    const updatedAt = new Date();
     await db.inventoryItems.update(id, {
       ...updates,
-      updatedAt: new Date(),
+      updatedAt,
     });
+    
+    // Get full item for cloud sync
+    const item = await db.inventoryItems.get(id);
+    if (item) {
+      await pushToCloud('items', item.id, {
+        name: item.name,
+        barcode: item.barcode,
+        category: item.categoryId,
+        condition: item.condition,
+        quantity: item.quantity,
+        unit: item.unit,
+        currency: item.currency,
+        purchase_price: item.purchasePrice,
+        selling_price: item.sellingPrice,
+        min_quantity: item.minimumStock,
+        notes: item.notes,
+        created_at: item.createdAt.toISOString(),
+        updated_at: item.updatedAt.toISOString(),
+      });
+    }
+
     await get().loadItems();
   },
 
   deleteItem: async (id) => {
     await db.inventoryItems.delete(id);
+    await deleteFromCloud('items', id);
     await get().loadItems();
   },
 
@@ -117,10 +161,32 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const item = await db.inventoryItems.get(id);
     if (item) {
       const newQty = Math.max(0, item.quantity + delta);
+      const updatedAt = new Date();
       await db.inventoryItems.update(id, {
         quantity: newQty,
-        updatedAt: new Date(),
+        updatedAt,
       });
+
+      // push update to cloud
+      const updatedItem = await db.inventoryItems.get(id);
+      if (updatedItem) {
+        await pushToCloud('items', updatedItem.id, {
+          name: updatedItem.name,
+          barcode: updatedItem.barcode,
+          category: updatedItem.categoryId,
+          condition: updatedItem.condition,
+          quantity: updatedItem.quantity,
+          unit: updatedItem.unit,
+          currency: updatedItem.currency,
+          purchase_price: updatedItem.purchasePrice,
+          selling_price: updatedItem.sellingPrice,
+          min_quantity: updatedItem.minimumStock,
+          notes: updatedItem.notes,
+          created_at: updatedItem.createdAt.toISOString(),
+          updated_at: updatedItem.updatedAt.toISOString(),
+        });
+      }
+
       await get().loadItems();
     }
   },
@@ -129,14 +195,24 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const existing = await db.inventoryCategories.where('name').equalsIgnoreCase(name).first();
     if (existing) throw new Error('Category already exists');
 
-    await db.inventoryCategories.put({
+    const cat = {
       id: uuidv4(),
       name,
       icon,
       color,
       createdAt: new Date(),
       updatedAt: new Date(),
+    };
+    await db.inventoryCategories.put(cat);
+
+    await pushToCloud('inventory_categories', cat.id, {
+      name: cat.name,
+      icon: cat.icon,
+      color: cat.color,
+      created_at: cat.createdAt.toISOString(),
+      updated_at: cat.updatedAt.toISOString(),
     });
+
     await get().loadCategories();
   },
 
@@ -147,6 +223,18 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       color,
       updatedAt: new Date(),
     });
+
+    const cat = await db.inventoryCategories.get(id);
+    if (cat) {
+      await pushToCloud('inventory_categories', cat.id, {
+        name: cat.name,
+        icon: cat.icon,
+        color: cat.color,
+        created_at: cat.createdAt.toISOString(),
+        updated_at: cat.updatedAt.toISOString(),
+      });
+    }
+
     await get().loadCategories();
     await get().loadItems(); // Refresh items to update category names
   },
@@ -156,6 +244,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     if (itemCount > 0) return false;
 
     await db.inventoryCategories.delete(id);
+    await deleteFromCloud('inventory_categories', id);
     await get().loadCategories();
     return true;
   },

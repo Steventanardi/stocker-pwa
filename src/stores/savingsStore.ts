@@ -5,6 +5,7 @@ import type { SavingsGoal } from '@/db/types';
 import { GoalStatus } from '@/db/types';
 import { useSettingsStore } from './settingsStore';
 import { convertAmount } from '@/utils/currency';
+import { pushToCloud, deleteFromCloud } from '@/lib/sync';
 
 /* ============================================
    Savings Store
@@ -53,12 +54,24 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
 
   addGoal: async (goalData) => {
     const now = new Date();
-    await db.savingsGoals.put({
+    const goal = {
       id: uuidv4(),
       ...goalData,
       createdAt: now,
       updatedAt: now,
+    };
+    await db.savingsGoals.put(goal);
+
+    // Sync to cloud
+    await pushToCloud('savings_goals', goal.id, {
+      name: goal.name,
+      target_amount: goal.targetAmount,
+      current_amount: goal.currentAmount,
+      currency: goal.currency,
+      target_date: goal.deadline ? goal.deadline.toISOString() : null,
+      created_at: goal.createdAt.toISOString()
     });
+
     await get().loadGoals();
   },
 
@@ -67,11 +80,25 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       ...updates,
       updatedAt: new Date(),
     });
+
+    const goal = await db.savingsGoals.get(id);
+    if (goal) {
+      await pushToCloud('savings_goals', goal.id, {
+        name: goal.name,
+        target_amount: goal.targetAmount,
+        current_amount: goal.currentAmount,
+        currency: goal.currency,
+        target_date: goal.deadline ? goal.deadline.toISOString() : null,
+        created_at: goal.createdAt.toISOString()
+      });
+    }
+
     await get().loadGoals();
   },
 
   deleteGoal: async (id) => {
     await db.savingsGoals.delete(id);
+    await deleteFromCloud('savings_goals', id);
     await get().loadGoals();
   },
 
@@ -88,6 +115,19 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         updates.status = GoalStatus.Completed;
       }
       await db.savingsGoals.update(id, updates);
+
+      const updatedGoal = await db.savingsGoals.get(id);
+      if (updatedGoal) {
+        await pushToCloud('savings_goals', updatedGoal.id, {
+          name: updatedGoal.name,
+          target_amount: updatedGoal.targetAmount,
+          current_amount: updatedGoal.currentAmount,
+          currency: updatedGoal.currency,
+          target_date: updatedGoal.deadline ? updatedGoal.deadline.toISOString() : null,
+          created_at: updatedGoal.createdAt.toISOString()
+        });
+      }
+
       await get().loadGoals();
     }
   },
@@ -97,6 +137,19 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       status: GoalStatus.Completed,
       updatedAt: new Date(),
     });
+
+    const updatedGoal = await db.savingsGoals.get(id);
+    if (updatedGoal) {
+      await pushToCloud('savings_goals', updatedGoal.id, {
+        name: updatedGoal.name,
+        target_amount: updatedGoal.targetAmount,
+        current_amount: updatedGoal.currentAmount,
+        currency: updatedGoal.currency,
+        target_date: updatedGoal.deadline ? updatedGoal.deadline.toISOString() : null,
+        created_at: updatedGoal.createdAt.toISOString()
+      });
+    }
+
     await get().loadGoals();
   },
 }));
