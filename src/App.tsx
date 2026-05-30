@@ -3,8 +3,10 @@ import { useEffect, useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { seedDefaultData } from '@/db/database';
 import { useSettingsStore, applyTheme } from '@/stores/settingsStore';
+import { useAuthStore } from '@/stores/authStore';
 
 // Pages
+import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Inventory from '@/pages/Inventory';
 import InventoryCategories from '@/pages/InventoryCategories';
@@ -23,15 +25,17 @@ import Onboarding from '@/pages/Onboarding';
 export default function App() {
   const [isReady, setIsReady] = useState(false);
   const { loadSettings, onboardingCompleted, theme } = useSettingsStore();
+  const { user, isGuest, isLoading: isAuthLoading, checkSession } = useAuthStore();
 
   useEffect(() => {
     async function init() {
+      await checkSession();
       await seedDefaultData();
       await loadSettings();
       setIsReady(true);
     }
     init();
-  }, [loadSettings]);
+  }, [loadSettings, checkSession]);
 
   useEffect(() => {
     if (isReady) {
@@ -51,7 +55,7 @@ export default function App() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  if (!isReady) {
+  if (!isReady || isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-app)]">
         <div className="flex flex-col items-center gap-4 animate-[fade-in_0.5s_ease-out]">
@@ -70,13 +74,19 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Auth */}
+        {!user && !isGuest && (
+          <Route path="*" element={<Login />} />
+        )}
+
         {/* Onboarding */}
-        {!onboardingCompleted && (
+        {(user || isGuest) && !onboardingCompleted && (
           <Route path="*" element={<Onboarding />} />
         )}
 
         {/* Main app */}
-        <Route element={<AppLayout />}>
+        {(user || isGuest) && onboardingCompleted && (
+          <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/inventory/categories" element={<InventoryCategories />} />
@@ -88,6 +98,7 @@ export default function App() {
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+        )}
       </Routes>
     </BrowserRouter>
   );
