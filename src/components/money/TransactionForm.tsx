@@ -4,6 +4,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import { toast } from '@/components/ui/Toast';
 import { useMoneyStore } from '@/stores/moneyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { TransactionType, PAYMENT_METHODS } from '@/db/types';
@@ -81,8 +82,16 @@ export default function TransactionForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.amount <= 0) {
+      toast('error', 'Amount must be greater than zero');
+      return;
+    }
+    if (!formData.categoryId) {
+      toast('error', 'Please select a category');
+      return;
+    }
     setIsSubmitting(true);
-    
+
     try {
       const dataToSave = {
         ...formData,
@@ -97,6 +106,7 @@ export default function TransactionForm({
       onClose();
     } catch (error) {
       console.error('Failed to save transaction', error);
+      toast('error', 'Failed to save transaction');
     } finally {
       setIsSubmitting(false);
     }

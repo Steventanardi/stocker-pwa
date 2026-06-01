@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { toast } from '@/components/ui/Toast';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useMoneyStore } from '@/stores/moneyStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -16,7 +17,7 @@ interface SellItemModalProps {
 
 export default function SellItemModal({ isOpen, onClose, itemId }: SellItemModalProps) {
   const { items, adjustQuantity } = useInventoryStore();
-  const { addTransaction } = useMoneyStore();
+  const { categories, addTransaction } = useMoneyStore();
   const { currency: defaultCurrency } = useSettingsStore();
   
   const item = items.find(i => i.id === itemId);
@@ -35,6 +36,16 @@ export default function SellItemModal({ isOpen, onClose, itemId }: SellItemModal
     e.preventDefault();
     if (quantityToSell <= 0 || quantityToSell > maxQuantity) return;
 
+    // Find a suitable income category (prefer Business/Sales, fallback to first income category)
+    const incomeCategory = categories.find(c =>
+      c.type === TransactionType.Income && (c.name === 'Business' || c.name === 'Sales')
+    ) ?? categories.find(c => c.type === TransactionType.Income);
+
+    if (!incomeCategory) {
+      toast('error', 'No income category found. Please create one first.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // 1. Deduct quantity
@@ -44,16 +55,18 @@ export default function SellItemModal({ isOpen, onClose, itemId }: SellItemModal
       await addTransaction({
         amount: totalSaleValue,
         type: TransactionType.Income,
-        categoryId: 'sales', // We'll just use a generic 'sales' ID, or we might need to look it up. Let's let the store handle it or leave as 'sales'.
+        categoryId: incomeCategory.id,
         notes: `Sold ${quantityToSell}x ${item.name}`,
         date: new Date(),
         currency: item.currency || defaultCurrency,
-        paymentMethod: 'cash',
+        paymentMethod: 'Cash',
       });
 
+      toast('success', `Sold ${quantityToSell}x ${item.name}`);
       onClose();
     } catch (error) {
       console.error('Failed to sell item:', error);
+      toast('error', 'Failed to complete sale');
     } finally {
       setIsSubmitting(false);
     }

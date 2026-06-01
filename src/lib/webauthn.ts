@@ -15,7 +15,7 @@ function bufferDecode(value: string): Uint8Array {
 
 // Helper to convert Uint8Array buffer to base64 string
 function bufferEncode(value: ArrayBuffer): string {
-  return btoa(String.fromCharCode.apply(null, new Uint8Array(value) as unknown as number[])).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return btoa(String.fromCharCode(...Array.from(new Uint8Array(value)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 export async function isWebAuthnSupported(): Promise<boolean> {

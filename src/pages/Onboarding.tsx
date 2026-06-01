@@ -11,7 +11,7 @@ import Button from '@/components/ui/Button';
 export default function Onboarding() {
   const { setCurrency, completeOnboarding } = useSettingsStore();
   const [step, setStep] = useState(1);
-  const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [selectedCurrency, setSelectedCurrency] = useState(CURRENCIES[0]?.code ?? 'TWD');
   const [isFinishing, setIsFinishing] = useState(false);
 
   const handleNext = () => {

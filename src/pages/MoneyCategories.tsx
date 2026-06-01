@@ -55,7 +55,7 @@ export default function MoneyCategories() {
     setIsSubmitting(true);
     try {
       if (editingId) {
-        await updateCategory(editingId, formData.name.trim(), formData.type);
+        await updateCategory(editingId, formData.name.trim());
         toast('success', 'Category updated successfully');
       } else {
         await addCategory(formData.name.trim(), formData.type);

@@ -4,6 +4,7 @@ import Header from '@/components/layout/Header';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from '@/components/ui/Toast';
 import { CURRENCIES } from '@/utils/currency';
 import { db } from '@/db/database';
 import { exportInventoryToCsv, exportTransactionsToCsv } from '@/utils/exportCsv';
@@ -41,11 +42,11 @@ export default function Settings() {
     setIsExporting(true);
     try {
       await loadItems();
-      await exportInventoryToCsv(useInventoryStore.getState().items);
-      alert('Inventory exported successfully');
+      exportInventoryToCsv(useInventoryStore.getState().items);
+      toast('success', 'Inventory exported successfully');
     } catch (error) {
       console.error('Failed to export inventory', error);
-      alert('Failed to export inventory');
+      toast('error', 'Failed to export inventory');
     } finally {
       setIsExporting(false);
     }
@@ -55,11 +56,11 @@ export default function Settings() {
     setIsExporting(true);
     try {
       await loadTransactions();
-      await exportTransactionsToCsv(useMoneyStore.getState().transactions);
-      alert('Transactions exported successfully');
+      exportTransactionsToCsv(useMoneyStore.getState().transactions);
+      toast('success', 'Transactions exported successfully');
     } catch (error) {
       console.error('Failed to export transactions', error);
-      alert('Failed to export transactions');
+      toast('error', 'Failed to export transactions');
     } finally {
       setIsExporting(false);
     }
@@ -89,9 +90,9 @@ export default function Settings() {
       try {
         const credId = await registerBiometrics();
         enableBiometrics(credId, pin);
-        alert("FaceID successfully linked!");
+        toast('success', 'FaceID successfully linked!');
       } catch (error: any) {
-        alert(error.message || "Failed to link FaceID");
+        toast('error', error.message || 'Failed to link FaceID');
       } finally {
         setIsRegistering(false);
       }

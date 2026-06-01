@@ -105,7 +105,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   addMoney: async (id, amount) => {
     const goal = await db.savingsGoals.get(id);
     if (goal) {
-      const newAmount = goal.currentAmount + amount;
+      const newAmount = Math.max(0, goal.currentAmount + amount);
       const updates: Partial<SavingsGoal> = {
         currentAmount: newAmount,
         updatedAt: new Date(),

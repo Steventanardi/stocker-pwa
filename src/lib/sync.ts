@@ -121,7 +121,7 @@ export async function syncMoneyFromCloud() {
           notes: tx.description || undefined,
           paymentMethod: tx.related_item_id || 'Cash',
           createdAt: new Date(tx.created_at),
-          updatedAt: new Date(tx.created_at)
+          updatedAt: new Date(tx.updated_at ?? tx.created_at)
         });
       }
     }
@@ -137,7 +137,7 @@ export async function syncMoneyFromCloud() {
           currency: bg.currency,
           month: bg.period,
           createdAt: new Date(bg.created_at),
-          updatedAt: new Date(bg.created_at)
+          updatedAt: new Date(bg.updated_at ?? bg.created_at)
         });
       }
     }
@@ -155,7 +155,7 @@ export async function syncMoneyFromCloud() {
           status: (sg.status as any) || 'active',
           deadline: sg.target_date ? new Date(sg.target_date) : undefined,
           createdAt: new Date(sg.created_at),
-          updatedAt: new Date(sg.created_at)
+          updatedAt: new Date(sg.updated_at ?? sg.created_at)
         });
       }
     }

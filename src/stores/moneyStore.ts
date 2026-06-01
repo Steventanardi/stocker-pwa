@@ -152,10 +152,8 @@ export const useMoneyStore = create<MoneyState>((set, get) => ({
       currency: transaction.currency,
       category: transaction.categoryId,
       date: transaction.date.toISOString(),
-      description: transaction.notes || '', // notes map to description
-      related_item_id: transaction.paymentMethod, // mapping issue? Wait, let me check the tData mapping. Actually, I don't see notes or paymentMethod in the DB schema, I'll just save them as description.
-      // Wait, let's look at the Transaction type. It has notes and paymentMethod. Let's just stringify them into description or leave related_item_id empty if not used.
-      // For now, let's keep it simple.
+      description: transaction.notes || '',
+      related_item_id: transaction.paymentMethod,
       created_at: transaction.createdAt.toISOString()
     });
 

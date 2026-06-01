@@ -3,6 +3,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import { toast } from '@/components/ui/Toast';
 import { ScanLine } from 'lucide-react';
 import { useInventoryStore } from '@/stores/inventoryStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -90,8 +91,16 @@ export default function InventoryForm({ isOpen, onClose, itemId }: InventoryForm
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      toast('error', 'Item name is required');
+      return;
+    }
+    if (!formData.categoryId) {
+      toast('error', 'Please select a category');
+      return;
+    }
     setIsSubmitting(true);
-    
+
     try {
       const dataToSave = {
         ...formData,
@@ -106,6 +115,7 @@ export default function InventoryForm({ isOpen, onClose, itemId }: InventoryForm
       onClose();
     } catch (error) {
       console.error('Failed to save item', error);
+      toast('error', 'Failed to save item');
     } finally {
       setIsSubmitting(false);
     }
